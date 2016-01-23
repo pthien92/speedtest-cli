@@ -395,14 +395,16 @@ def getConfig():
                 'client': root.find('client').attrib,
                 'times': root.find('times').attrib,
                 'download': root.find('download').attrib,
-                'upload': root.find('upload').attrib}
+                'upload': root.find('upload').attrib,
+                'latency': root.find('latency').attrib}
         except AttributeError:  # Python3 branch
             root = DOM.parseString(''.join(configxml))
             config = {
                 'client': getAttributesByTagName(root, 'client'),
                 'times': getAttributesByTagName(root, 'times'),
                 'download': getAttributesByTagName(root, 'download'),
-                'upload': getAttributesByTagName(root, 'upload')}
+                'upload': getAttributesByTagName(root, 'upload'),
+                'latency': getAttributesByTagName(root, 'latency')}
     except SyntaxError:
         print_('Failed to parse speedtest.net configuration')
         sys.exit(1)
@@ -522,11 +524,14 @@ def getBestServer(servers):
             else:
                 cum.append(3600)
             h.close()
+        # print cum
         avg = round((sum(cum) / 6) * 1000, 3)
+        # print avg,server
         results[avg] = server
     fastest = sorted(results.keys())[0]
     best = results[fastest]
     best['latency'] = fastest
+    # print best
 
     return best
 
@@ -717,6 +722,7 @@ def speedtest():
     if not args.simple:
         print_('Testing download speed', end='')
     dlspeed = downloadSpeed(urls, args.simple)
+    converted_download_speed = (dlspeed / 1000 / 1000) * 8
     if not args.simple:
         print_()
     print_('Download: %0.2f M%s/s' %
@@ -730,6 +736,7 @@ def speedtest():
     if not args.simple:
         print_('Testing upload speed', end='')
     ulspeed = uploadSpeed(best['url'], sizes, args.simple)
+    converted_upload_speed = (ulspeed / 1000 / 1000) * 8
     if not args.simple:
         print_()
     print_('Upload: %0.2f M%s/s' %
@@ -783,11 +790,18 @@ def speedtest():
 
         print_('Share results: %s://www.speedtest.net/result/%s.png' %
                (scheme, resultid[0]))
-
+    return converted_download_speed,converted_upload_speed
 
 def main():
+    print_('\nI am Thien')
     try:
-        speedtest()
+        download_speed, upload_speed = speedtest()
+        print_('%0.2f Mbits/s' % (download_speed))
+        print_('%0.2f Mbits/s' % (upload_speed))
+        # config = getConfig()
+        # print config
+        # print build_user_agent()
+
     except KeyboardInterrupt:
         print_('\nCancelling...')
 
