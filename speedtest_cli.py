@@ -24,6 +24,11 @@ import socket
 import timeit
 import platform
 import threading
+import paramiko
+import sys
+import os
+import os.path
+
 
 __version__ = '0.3.4'
 
@@ -706,6 +711,7 @@ def speedtest():
         if not args.simple:
             print_('Selecting best server based on latency...')
         best = getBestServer(servers)
+    ping = best['latency']
 
     if not args.simple:
         print_(('Hosted by %(sponsor)s (%(name)s) [%(d)0.2f km]: '
@@ -716,7 +722,7 @@ def speedtest():
     sizes = [350, 500, 750, 1000, 1500, 2000, 2500, 3000, 3500, 4000]
     urls = []
     for size in sizes:
-        for i in range(0, 4):
+        for i in range(0, 2):
             urls.append('%s/random%sx%s.jpg' %
                         (os.path.dirname(best['url']), size, size))
     if not args.simple:
@@ -790,22 +796,46 @@ def speedtest():
 
         print_('Share results: %s://www.speedtest.net/result/%s.png' %
                (scheme, resultid[0]))
-    return converted_download_speed,converted_upload_speed
+    return ping, converted_download_speed, converted_upload_speed
+
+def change_gate_way(gateway):
+    passwd = "temppwd"
+    user_name = "ubuntu"
+    ssh = paramiko.SSHClient()
+    ssh.load_system_host_keys()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    ssh.connect('192.168.1.3', username=user_name, password=passwd)
+    chan = ssh.get_transport().open_session()
+    chan.get_pty()
+    f = chan.makefile()
+    chan.exec_command("./set_up_" + gateway + "_gateway.sh")
+    chan.send("temppwd\n")
+    f.read()
+    print gateway + " gateway is set"
+    ssh.close()
 
 def main():
-    print_('\nI am Thien')
+    print "Testing Wifi connection speed"
+    #change_gate_way("wifi")
     try:
-        download_speed, upload_speed = speedtest()
-        print_('%0.2f Mbits/s' % (download_speed))
-        print_('%0.2f Mbits/s' % (upload_speed))
-        # config = getConfig()
-        # print config
-        # print build_user_agent()
+        ping_wifi, download_speed_wifi, upload_speed_wifi = speedtest()
+        # print_('%0.2f Mbits/s' % (download_speed))
+        # print_('%0.2f Mbits/s' % (upload_speed))
 
     except KeyboardInterrupt:
         print_('\nCancelling...')
 
-
+    print "\nTesting 4G connection speed"
+    #change_gate_way("4g")
+    try:
+        ping_4g, download_speed_4g, upload_speed_4g = speedtest()
+    except KeyboardInterrupt:
+        print_('\nCancelling...')
+    print "\n=========================\nSummary:"
+    print_('\nWifi:\tPing: %s\tDownload: %0.2f Mbits/s\tUpload: %0.2f Mbits/s'
+           % (ping_wifi, download_speed_wifi, upload_speed_wifi))
+    print_('\n4G:\tPing: %s\tDownload: %0.2f Mbits/s\tUpload: %0.2f Mbits/s'
+           % (ping_4g, download_speed_4g, upload_speed_4g))
 if __name__ == '__main__':
     main()
 
